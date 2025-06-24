@@ -1,0 +1,11 @@
+flutter_native_splash:
+  color: "#19043A"
+  color_dark: "#19043A"
+  image: assets/images/smart_garage_logo.png
+  android_12:
+    color: "#19043A"
+    color_dark: "#19043A"
+    image: assets/images/smart_garage_logo.png
+
+
+
