@@ -1,6 +1,3 @@
-
-
-
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,60 +12,35 @@ class PlaceDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    IconData icon;
-    Color cardColor;
-    switch (place.status) {
-      case 'Empty':
-        icon = Icons.lock_open;
-        cardColor = AppColors.lightBlue;
-        break;
-      case 'Busy':
-        icon = Icons.lock;
-        cardColor = AppColors.darkBlue;
-        break;
-      case 'Booked':
-        icon = Icons.event_available;
-        cardColor = AppColors.bookedBlue;
-        break;
-      default:
-        icon = Icons.lock_open;
-        cardColor = AppColors.lightBlue;
-    }
-
-    return ZoomIn(
+    return FadeInUp(
       duration: const Duration(milliseconds: 600),
       child: Card(
-        elevation: 10,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        elevation: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: cardColor,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(16),
+            color: AppColors.lightBlue,
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                icon,
+                place.status == 'Empty'
+                    ? Icons.lock_open
+                    : place.status == 'Booked'
+                    ? Icons.event_available
+                    : Icons.lock,
                 color: AppColors.white,
-                size: 60,
+                size: 50,
               ),
               const SizedBox(height: 16),
               Text(
                 'Place ${place.id}',
                 style: GoogleFonts.poppins(
                   color: AppColors.white,
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -77,7 +49,7 @@ class PlaceDetailsCard extends StatelessWidget {
                 'Status: ${place.status}',
                 style: GoogleFonts.poppins(
                   color: AppColors.white.withOpacity(0.7),
-                  fontSize: 20,
+                  fontSize: 18,
                 ),
               ),
               if (place.plateNumber != null) ...[
@@ -86,7 +58,7 @@ class PlaceDetailsCard extends StatelessWidget {
                   'Plate: ${place.plateNumber}',
                   style: GoogleFonts.poppins(
                     color: AppColors.white.withOpacity(0.7),
-                    fontSize: 18,
+                    fontSize: 16,
                   ),
                 ),
               ],

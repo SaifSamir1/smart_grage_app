@@ -41,10 +41,14 @@ dependencies:
   google_fonts: ^6.1.0
   flutter_credit_card: ^4.1.0
   flutter_native_splash: ^2.4.6
+  typed_data: ^1.4.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
+
+
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -63,6 +67,16 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/smart_garage_logo.png"
+  min_sdk_android: 21 # Optional, but recommended
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF" # Optional, for Android adaptive icons
+  adaptive_icon_foreground: "assets/images/smart_garage_logo.png" # Optional, for Android adaptive icons
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,33 +1,94 @@
-
-
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../models/place_model.dart';
+import '../../services/mqtt_repo.dart';
 import 'home_state.dart';
 
-
-
-
-
 class HomeCubit extends Cubit<HomeState> {
-  HomeCubit()
-      : super(HomeState(places: [
-    PlaceModel(id: 1, status: 'Empty', plateNumber: null),
-    PlaceModel(id: 2, status: 'Busy', plateNumber: 'XYZ789'),
-    PlaceModel(id: 3, status: 'Booked', plateNumber: 'ABC123'),
-    PlaceModel(id: 4, status: 'Empty', plateNumber: null),
-    PlaceModel(id: 5, status: 'Empty', plateNumber: null),
-    PlaceModel(id: 6, status: 'Busy', plateNumber: 'DEF456'),
-  ]));
+  final MqttRepository mqttRepository;
+  List<PlaceModel> places = List.generate(
+    6,
+    (index) =>
+        PlaceModel(id: index + 1, status: Status.empty, plateNumber: null),
+  );
 
-  void reservePlace(int id, String plateNumber) {
-    final updatedPlaces = state.places.map((place) {
-      if (place.id == id) {
-        return PlaceModel(id: id, status: 'Booked', plateNumber: plateNumber);
+  HomeCubit(this.mqttRepository) : super(HomeInitial()) {
+    _initialize();
+  }
+
+  void _initialize() async {
+    emit(HomeLoading());
+    try {
+      await mqttRepository.connect();
+      mqttRepository.subscribeToStatusUpdates(this);
+      await fetchPlaces();
+    } catch (e) {
+      emit(HomeError('Failed to initialize MQTT: $e'));
+    }
+  }
+
+  Future<void> fetchPlaces() async {
+    emit(HomeLoading());
+    try {
+      final initialData = await mqttRepository.getInitialState();
+
+      for (var data in initialData) {
+        final placeNum = int.parse(data['place_id'].replaceAll('Place', ''));
+        final index = places.indexWhere((p) => p.id == placeNum);
+
+        if (index != -1) {
+          places[index] = PlaceModel(
+            id: placeNum,
+            status: Status.values.firstWhere(
+              (s) =>
+                  s.toString().split('.').last == data['status'].toLowerCase(),
+              orElse: () => Status.empty,
+            ),
+            plateNumber:
+                data['plate_number']?.isNotEmpty == true
+                    ? data['plate_number']
+                    : null,
+          );
+        }
       }
-      return place;
-    }).toList();
-    emit(state.copyWith(places: updatedPlaces));
+
+      emit(HomeSuccess(List<PlaceModel>.from(places)));
+    } catch (e) {
+      emit(HomeError('Failed to fetch places: $e'));
+    }
+  }
+
+  void bookPlace(int placeId, String plateNumber) {
+    try {
+      mqttRepository.publishReservation(placeId, plateNumber);
+      // State update will be handled by subscribeToStatusUpdates
+    } catch (e) {
+      emit(HomeError('Failed to book place: $e'));
+    }
+  }
+
+  void updatePlaceStatus(String placeId, String status, String plateNumber) {
+    final placeNum = int.parse(placeId.replaceAll('Place', ''));
+    final updatedPlaces =
+        places.map((place) {
+          if (place.id == placeNum) {
+            return PlaceModel(
+              id: place.id,
+              status: Status.values.firstWhere(
+                (s) => s.toString().split('.').last == status.toLowerCase(),
+                orElse: () => Status.empty,
+              ),
+              plateNumber: plateNumber.isEmpty ? null : plateNumber,
+            );
+          }
+          return place;
+        }).toList();
+    places = updatedPlaces;
+    emit(HomeSuccess(updatedPlaces));
+  }
+
+  void disconnect() {
+    mqttRepository.disconnect();
+    emit(HomeInitial());
   }
 }

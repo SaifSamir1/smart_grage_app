@@ -1,57 +1,122 @@
-
-
-
-
+import 'dart:convert' as json;
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
+
+import 'package:typed_data/typed_data.dart';
 
 class MqttService {
-  final MqttServerClient _client;
-  final int _port = 1883;
-  Function(int, String)? onPlaceStatusUpdated;
+  late MqttServerClient client;
 
-  MqttService()
-      : _client = MqttServerClient('broker.hivemq.com', 'flutter_client_${DateTime.now().millisecondsSinceEpoch}') {
-    _client.port = _port;
-    _client.logging(on: false);
-    _client.keepAlivePeriod = 60;
-    _client.onDisconnected = () => print('MQTT Disconnected');
-    _client.onConnected = () => print('MQTT Connected');
+  MqttService() {
+    // Generate a unique client ID using a random number
+    final random = Random().nextInt(10000);
+    client = MqttServerClient(
+      'broker.hivemq.com',
+      'smart_garage_client_$random',
+    );
+    client.port = 1883;
+    client.logging(on: false);
+    client.onDisconnected = _onDisconnected;
+    client.onSubscribed = _onSubscribed;
+    client.onConnected = _onConnected;
+    client.onUnsubscribed = _onUnsubscribed;
+    client.autoReconnect = true;
+    client.resubscribeOnAutoReconnect = true;
   }
 
-  Future<void> connect() async {
-    try {
-      await _client.connect();
-      // Subscribe to topics for 7 places
-      for (int i = 1; i <= 6; i++) {
-        _client.subscribe('garage/place$i', MqttQos.atLeastOnce);
-      }
-      // Listen for updates
-      _client.updates?.listen((List<MqttReceivedMessage<MqttMessage>> c) {
-        final recMess = c[0].payload as MqttPublishMessage;
-        final topic = c[0].topic;
-        final payload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
-        final placeId = int.parse(topic.split('/').last.replaceAll('place', ''));
-        onPlaceStatusUpdated?.call(placeId, payload);
-      });
-    } catch (e) {
-      print('MQTT Connection failed: $e');
-      _client.disconnect();
+  void _onSubscribed(String? topic) {
+    if (kDebugMode) {
+      print('Subscribed to $topic');
     }
   }
 
-  void publishReservation(int placeId) {
-    if (_client.connectionStatus?.state == MqttConnectionState.connected) {
+  void _onUnsubscribed(String? topic) {
+    if (kDebugMode) {
+      print('Unsubscribed from $topic');
+    }
+  }
+
+  void _onDisconnected() {
+    if (kDebugMode) {
+      print('Disconnected from MQTT broker');
+    }
+  }
+
+  void _onConnected() {
+    if (kDebugMode) {
+      print('Connected to MQTT broker');
+      // Subscribe to the status topic upon connection
+      subscribe('garage/status', MqttQos.atLeastOnce);
+    }
+  }
+
+  Future<void> connect() async {
+    client.setProtocolV311();
+    client.keepAlivePeriod = 60;
+    try {
+      await client.connect();
+    } catch (e) {
+      if (kDebugMode) {
+        print('MQTT connection error: $e');
+      }
+      client.disconnect();
+      rethrow;
+    }
+  }
+
+  void subscribe(String topic, MqttQos qos) {
+    try {
+      client.subscribe(topic, qos);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Subscription error for $topic: $e');
+      }
+    }
+  }
+
+  void publishReservation(int placeId, String plateNumber) {
+    try {
+      final payload = jsonEncode({
+        'place_id': 'Place$placeId',
+        'plate_number': plateNumber,
+        'status': 'Booked',
+      });
       final builder = MqttClientPayloadBuilder();
-      builder.addString('Place$placeId');
-      _client.publishMessage('garage/reserve', MqttQos.atLeastOnce, builder.payload!);
-      print('Reserved Place $placeId');
-    } else {
-      print('Cannot reserve: MQTT not connected');
+      builder.addString(payload);
+      client.publishMessage(
+        'garage/send',
+        MqttQos.atLeastOnce,
+        builder.payload!,
+      );
+      if (kDebugMode) {
+        print('Published reservation: $payload');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Publish error: $e');
+      }
+    }
+  }
+
+  void publishMessage(String topic, MqttQos qos, List<int> payload) {
+    try {
+      // تحويل List<int> إلى Uint8Buffer
+      final buffer = Uint8Buffer()..addAll(payload);
+      client.publishMessage(topic, qos, buffer);
+      if (kDebugMode) {
+        print('Published message to $topic: ${String.fromCharCodes(payload)}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error publishing to $topic: $e');
+      }
     }
   }
 
   void disconnect() {
-    _client.disconnect();
+    client.disconnect();
   }
 }

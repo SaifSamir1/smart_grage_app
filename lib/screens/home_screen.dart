@@ -1,10 +1,7 @@
-
-
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../cubits/home_cubit/home_cubit.dart';
 import '../cubits/home_cubit/home_state.dart';
 import '../models/place_model.dart';
@@ -39,7 +36,6 @@ class AppBarWidget extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
-// PlaceCard Widget
 class PlaceCardWidget extends StatelessWidget {
   final PlaceModel place;
   final VoidCallback onTap;
@@ -51,15 +47,15 @@ class PlaceCardWidget extends StatelessWidget {
     IconData icon;
     Color cardColor;
     switch (place.status) {
-      case 'Empty':
+      case Status.empty:
         icon = Icons.lock_open;
         cardColor = AppColors.lightBlue;
         break;
-      case 'Busy':
+      case Status.busy:
         icon = Icons.lock;
         cardColor = AppColors.darkBlue;
         break;
-      case 'Booked':
+      case Status.booked:
         icon = Icons.event_available;
         cardColor = AppColors.bookedBlue;
         break;
@@ -95,11 +91,7 @@ class PlaceCardWidget extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        icon,
-                        color: AppColors.white,
-                        size: 40,
-                      ),
+                      Icon(icon, color: AppColors.white, size: 40),
                       const SizedBox(height: 8),
                       Text(
                         'Place ${place.id}',
@@ -110,7 +102,10 @@ class PlaceCardWidget extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        place.status,
+                        place.status
+                            .toString()
+                            .split('.')
+                            .last, // Display "empty", "busy", "booked"
                         style: GoogleFonts.poppins(
                           color: AppColors.white.withOpacity(0.7),
                           fontSize: 16,
@@ -129,7 +124,7 @@ class PlaceCardWidget extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (place.status == 'Empty')
+                if (place.status == Status.empty)
                   const Positioned(
                     top: 8,
                     right: 8,
@@ -148,7 +143,6 @@ class PlaceCardWidget extends StatelessWidget {
   }
 }
 
-// PlacesGrid Widget
 class PlacesGridWidget extends StatelessWidget {
   final List<PlaceModel> places;
 
@@ -182,26 +176,39 @@ class PlacesGridWidget extends StatelessWidget {
   }
 }
 
-// HomeScreen Widget
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => HomeCubit(),
-      child: Scaffold(
-        appBar: const AppBarWidget(),
-        body: SafeArea(
-          child: Container(
-            color: AppColors.background,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: BlocBuilder<HomeCubit, HomeState>(
-                builder: (context, state) {
-                  return PlacesGridWidget(places: state.places);
-                },
-              ),
+    return Scaffold(
+      appBar: const AppBarWidget(),
+      body: SafeArea(
+        child: Container(
+          color: AppColors.background,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: BlocBuilder<HomeCubit, HomeState>(
+              builder: (context, state) {
+                if (state is HomeLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (state is HomeSuccess) {
+                  return PlacesGridWidget(places: state.places!);
+                } else if (state is HomeError) {
+                  return Center(
+                    child: Text(
+                      state.message,
+                      style: GoogleFonts.poppins(
+                        color: Colors.red,
+                        fontSize: 16,
+                      ),
+                    ),
+                  );
+                }
+                return const Center(
+                  child: CircularProgressIndicator(),
+                ); // Default case
+              },
             ),
           ),
         ),

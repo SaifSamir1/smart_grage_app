@@ -5,8 +5,6 @@ import '../widgets/details_app_bar.dart';
 import '../widgets/place_details_card.dart';
 import '../widgets/reverse_button.dart';
 
-
-
 class DetailsScreen extends StatelessWidget {
   final PlaceModel place;
 
